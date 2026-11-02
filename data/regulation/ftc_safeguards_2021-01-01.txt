@@ -1,0 +1,5 @@
+# DEMO EXCERPT of 16 CFR 314.4 as in force on 2021-01-01 (abridged).
+# Clause texts are short excerpts used to demonstrate the redline. Pull the official full text with
+#   python -m lexdiff fetch-ecfr --date 2021-01-01 --out data/regulation/ecfr_2021-01-01.txt
+# and check every clause against eCFR before relying on any output.
+§ 314.4(c) | Design and implement information safeguards to control the risks you identify through risk assessment, and regularly test or otherwise monitor the effectiveness of the safeguards' key controls, systems, and procedures.

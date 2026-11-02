@@ -1,0 +1,30 @@
+{
+  "name": "Lendwise (demo non-bank lender)",
+  "app_factory": "app.main:create_app",
+  "data_dir_env": "LENDWISE_DATA_DIR",
+  "public_routes": ["/health"],
+  "sensitive_names": ["ssn", "account_number"],
+  "mfa": {
+    "decorator": "require_mfa",
+    "header": "X-MFA-Code",
+    "code_from": "app.security:current_totp",
+    "denied_header": "X-MFA-Required"
+  },
+  "notice": {"module": "app.incidents", "function": "handle_notification_event"},
+  "canary": {
+    "ssn": "900-00-4821",
+    "account_number": "000123456789",
+    "stores": {"logs": "logs", "exports": "exports", "db": "lendwise.db"},
+    "scenario": [
+      {"method": "POST", "path": "/applications", "mfa": true,
+       "json": {"name": "Canary Customer", "email": "canary@example.test",
+                "ssn": "{{ssn}}", "account_number": "{{account_number}}", "amount": 2500}},
+      {"method": "POST", "path": "/login", "mfa": true,
+       "json": {"username": "canary", "password": "canary-pass"}},
+      {"method": "GET", "path": "/profile", "mfa": true, "headers": {"X-Customer-Id": "1"}},
+      {"method": "GET", "path": "/support/impersonate/1", "mfa": true},
+      {"method": "POST", "path": "/mobile/token", "mfa": true, "json": {"device_id": "canary-phone"}}
+    ],
+    "jobs": ["jobs.export_underwriting:run"]
+  }
+}

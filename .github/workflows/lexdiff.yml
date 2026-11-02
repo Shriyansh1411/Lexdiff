@@ -1,0 +1,37 @@
+# Lexdiff as a pull-request check.
+# Point --target at your own application directory (it needs a lexdiff_target.json).
+name: Lexdiff guard
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      # Zero-LLM gate: fails the PR and annotates the exact offending line with its clause.
+      - name: Lexdiff guard
+        run: python -m lexdiff guard --target demo/lendwise_fixed --format github
+
+      - name: Engine tests
+        run: python -m pytest -q tests
+
+      # Optional: re-prove the fix on every PR (obligation tests fail on base, pass on head).
+      - name: Fail-before / pass-after proof
+        run: |
+          python -m lexdiff run --base demo/lendwise_base --head demo/lendwise_fixed \
+            --reg-old data/regulation/ftc_safeguards_2021-01-01.txt \
+            --reg-new data/regulation/ftc_safeguards_2026-09-01.txt \
+            --approver "CI (pre-approved obligations)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lexdiff-certificate
+          path: .lexdiff/certificate.*

@@ -1,0 +1,5 @@
+Flask>=3.0        # demo lender app (the target Lexdiff checks)
+PyYAML>=6.0       # obligation files
+requests>=2.31    # LLM API client and eCFR fetch
+pytest>=8.0       # preferred test engine (a unittest fallback is built in)
+streamlit>=1.35   # dashboard

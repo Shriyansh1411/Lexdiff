@@ -1,0 +1,13 @@
+# A hand-written draft that paraphrases the law instead of quoting it.
+# `lexdiff validate compliance/drafts --regulation data/regulation/ftc_safeguards_2026-09-01.txt` rejects it.
+id: SG-5
+clause: 314.4(c)(5)
+quote: Staff must use two-step login whenever they open any company system.
+requirement: Every individual accessing an information system must pass a second authentication factor.
+kind: mfa_required
+params: {}
+checks: []
+status: proposed
+approved_by: ''
+approved_at: ''
+source: human

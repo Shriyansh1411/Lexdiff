@@ -1,0 +1,9 @@
+# DEMO EXCERPT of 16 CFR 314.4 as in force on 2026-09-01 (abridged).
+# Clause texts are short excerpts used to demonstrate the redline. Pull the official full text with
+#   python -m lexdiff fetch-ecfr --date 2026-09-01 --out data/regulation/ecfr_2026-09-01.txt
+# and check every clause against eCFR before relying on any output.
+§ 314.4(c) | Design and implement safeguards to control the risks you identify through risk assessment, including by:
+§ 314.4(c)(3) | Protect by encryption all customer information held or transmitted by you both in transit over external networks and at rest.
+§ 314.4(c)(5) | Implement multi-factor authentication for any individual accessing any information system, unless your Qualified Individual has approved in writing the use of reasonably equivalent or more secure access controls;
+§ 314.4(c)(7) | Adopt procedures for change management.
+§ 314.4(j)(1) | Upon discovery of a notification event as described in paragraph (j)(2) of this section, if the notification event involves the information of at least 500 consumers, you must notify the Federal Trade Commission as soon as possible, and no later than 30 days after discovery of the event.

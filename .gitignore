@@ -1,0 +1,70 @@
+# ==============================
+# Python virtual environments
+# ==============================
+.venv/
+.venv-1/
+.venv314/
+.venv*/
+venv/
+env/
+
+# ==============================
+# Python cache and compiled files
+# ==============================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+
+# ==============================
+# Secrets and environment variables
+# ==============================
+.env
+.env.*
+!.env.example
+
+# ==============================
+# Lexdiff generated artifacts
+# ==============================
+.lexdiff/
+.pytest_cache/
+.streamlit/secrets.toml
+
+# ==============================
+# Local generated data
+# ==============================
+data/*
+!data/regulation/
+!data/regulation/**
+
+# ==============================
+# Local demo repository
+# ==============================
+.demo_repo/
+
+# ==============================
+# Generated compliance artifacts
+# ==============================
+compliance/obligations/
+compliance/tests/
+compliance/tests.lock.json
+
+# ==============================
+# IDE and editor files
+# ==============================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==============================
+# OS files
+# ==============================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==============================
+# Logs
+# ==============================
+*.log
