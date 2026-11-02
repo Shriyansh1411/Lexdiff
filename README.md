@@ -1,138 +1,588 @@
-# Lexdiff: diff the law, test the code
+Lexdiff — Diff the Law, Test the Code
 
-When a regulation changes, Lexdiff finds the code that now breaks it, writes the failing test first,
-proves the fix (**fails on the base, passes on the fix**), and issues a graded certificate that
-**never says "compliant"**. *AI proposes; deterministic checks decide.*
+From regulatory changes to verified code-level compliance evidence.
 
-The bundled demo is **Lendwise**, a fictional non-bank lender, checked against excerpts of the FTC
-Safeguards Rule (16 CFR 314): multi-factor authentication (§314.4(c)(5)), no readable customer data
-(§314.4(c)(3)), the 30-day FTC notice (§314.4(j)(1)), and change management (§314.4(c)(7), human review).
+Lexdiff is an AI-assisted regulatory change impact analysis and compliance verification engine.
 
-## Quick start
+When a regulation changes, Lexdiff identifies the application code that may be affected, generates obligation-specific tests before remediation, proves whether the fixes work, and produces an evidence-backed compliance certificate.
 
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-make test        # engine tests
-make demo        # all nine stages on the demo, writes .lexdiff/certificate.html
-make guard-base  # the CI gate on the broken app: one finding per violation, exit 1
-make benchmark   # Lexdiff vs a keyword search on the tagged demo app
-make dashboard   # Streamlit UI
-make demo-git    # the same proof with base/head taken from git refs
-```
+AI proposes. Deterministic checks decide.
 
-No API key or network is needed: without `LEXDIFF_LLM_API_KEY` a deterministic drafter is used.
+The bundled demonstration uses Lendwise, a fictional non-bank lender, evaluated against abridged excerpts of the FTC Safeguards Rule (16 CFR Part 314).
 
-## Architecture
+The demo covers:
 
-```
- INPUTS                       LEXDIFF ENGINE (Python)                      OUTPUTS
- ┌────────────────┐     ┌──────────────────────────────────────┐     ┌──────────────────────┐
- │ regulation v1  │ ──▶ │ 2 Redline ─▶ 3 Obligations           │ ──▶ │ locked obligation    │
- │ regulation v2  │     │ 1 Screen     (verbatim quotes)       │     │ tests                │
- │ target repo    │ ──▶ │ 4 Impact map ─▶ 5 Failing tests      │ ──▶ │ graded certificate   │
- │ (base + fix)   │     │ 6 Canary ─▶ 7 Prove ─▶ 8 Evidence    │     │ (JSON + HTML)        │
- └────────────────┘     │ 9 Guard (zero LLM, CI)               │ ──▶ │ CI check + annotations│
-                        └───────▲──────────────────▲───────────┘     └──────────────────────┘
-                                │                  │
-                  LLM API (temp 0, JSON,     Named human approves
-                  drafts + screening only)   obligations and test rewrites
-```
+Multi-factor authentication (§314.4(c)(5))
 
-| # | Stage | Module | Uses a model? |
-|---|-------|--------|---------------|
-| 1 | **Screen**: flag comments aimed at AI agents (prompt injection) | `lexdiff/screen.py` | optional second opinion |
-| 2 | **Redline**: clause-level diff, renumbering set aside | `lexdiff/regulation/` | no |
-| 3 | **Obligations**: draft from clause text; quotes must be verbatim; human approves | `lexdiff/obligations/` | optional drafter |
-| 4 | **Impact**: code graph of routes, mounted blueprints, SQL view aliases (`ssn → tin`), log/file sinks | `lexdiff/graph.py` | no |
-| 5 | **Failing tests first**: checks planned from the graph, tests generated and hash-locked | `obligations/planner.py`, `testgen.py` | no |
-| 6 | **Canary**: plant a synthetic SSN + account, run the app, sweep logs, exports, database | `lexdiff/canary/` | no |
-| 7 | **Prove**: every test must fail on base and pass on the fix; own tests stay green; locked tests unchanged | `lexdiff/proof/` | no |
-| 8 | **Evidence**: Verified / Partially verified / Unverified / Human review required | `lexdiff/evidence.py` | no |
-| 9 | **Guard**: static CI gate, fails the PR on the exact line and cites the clause | `lexdiff/guard.py` | no |
+Protection of customer information (§314.4(c)(3))
 
-Only steps 1 and 3 can call a model. Every pass or fail comes from code.
+FTC notification requirements (§314.4(j)(1))
 
-## Tech stack
+Change management (§314.4(c)(7))
 
-Python 3.12 · `difflib` (redline) · `ast` (code graph) · Flask + SQLite (demo target) · OpenAI-compatible
-LLM API at temperature 0 with JSON output · pytest (with a built-in unittest fallback) · git (`repo@ref`
-sources) · GitHub Actions (PR check) · Streamlit (dashboard) · argparse CLI.
+1. The Problem
 
-## Commands
+When regulations change, engineering teams need to determine:
 
-```
-python -m lexdiff run        --base DIR --head DIR --reg-old FILE --reg-new FILE --approver "Name"
-python -m lexdiff redline    --old FILE --new FILE
-python -m lexdiff draft      --old FILE --new FILE
-python -m lexdiff validate   compliance/drafts --regulation FILE     # rejects paraphrased quotes
-python -m lexdiff approve    SG-5 --by "Name"
-python -m lexdiff graph      --target DIR
-python -m lexdiff gen-tests  --target DIR [--allow-rewrite --by NAME --reason WHY]
-python -m lexdiff canary     --target DIR
-python -m lexdiff verify     --base DIR|repo@ref --head DIR|repo@ref
-python -m lexdiff guard      --target DIR [--format text|json|github]   # exit 1 on findings
-python -m lexdiff benchmark  --target DIR
-python -m lexdiff fetch-ecfr --date 2026-09-01 --out FILE               # needs network
+Which regulatory obligations have changed?
+
+Which application components are affected?
+
+What code needs remediation?
+
+How can the fix be independently verified?
+
+What evidence demonstrates that the remediation worked?
+
+Traditional compliance processes rely heavily on manual reviews and static checklists.
+
+Lexdiff connects regulatory changes directly to application code, executable tests and verification evidence.
+
+2. Key Features
+
+Regulatory Redlining: Identifies clause-level changes between regulatory versions.
+
+Obligation Extraction: Converts regulatory clauses into structured obligations with verbatim quotations.
+
+Code Impact Analysis: Maps routes, dependencies, sensitive data fields and application sinks.
+
+Fail-Before / Pass-After Testing: Generates tests before remediation and verifies them against both code versions.
+
+Synthetic Canary Detection: Tracks synthetic sensitive data across logs, exports and databases.
+
+Evidence-Based Certification: Assigns individual verification grades based on automated evidence.
+
+Human-in-the-Loop Approval: Requires named human approval for obligations and authorized test rewrites.
+
+CI Integration: Provides a deterministic guard for identifying code-level findings.
+
+3. Architecture
+
+INPUTS                  LEXDIFF ENGINE                  OUTPUTS
+
+Regulation V1 ──┐
+                ├──> Redline ──> Obligations ───────> Locked Tests
+Regulation V2 ──┘
+                       │
+Target Repository ───> Impact Analysis
+(Base + Fixed)         │
+                       ▼
+                  Failing Tests
+                       │
+                       ▼
+                  Canary Detection
+                       │
+                       ▼
+                  Base vs Fix Proof
+                       │
+                       ▼
+                  Evidence Grading
+                       │
+                       ▼
+                  Deterministic Guard
+                       │
+                       ▼
+                 JSON + HTML Certificate
+                 CI Findings
+                 Dashboard
+
+4. Nine-Stage Workflow
+
+Stage
+
+Component
+
+Function
+
+AI Usage
+
+1
+
+Screen
+
+Detects comments targeting AI agents and potential prompt injection.
+
+Optional second opinion
+
+2
+
+Redline
+
+Performs clause-level regulatory comparison and handles renumbering.
+
+No
+
+3
+
+Obligations
+
+Extracts obligations with verbatim regulatory quotations and human approval.
+
+Optional drafter
+
+4
+
+Impact
+
+Maps routes, dependencies, SQL aliases and data sinks.
+
+No
+
+5
+
+Test Generation
+
+Generates obligation tests and locks them using hashes.
+
+No
+
+6
+
+Canary
+
+Plants synthetic SSN and bank-account data and scans application stores.
+
+No
+
+7
+
+Proof
+
+Verifies that tests fail on the base and pass on the fixed implementation.
+
+No
+
+8
+
+Evidence
+
+Grades each obligation based on verification evidence.
+
+No
+
+9
+
+Guard
+
+Runs deterministic CI checks and reports code-level findings.
+
+No
+
+Only stages 1 and 3 can use an LLM.
+
+Every automated pass or fail decision comes from code execution and deterministic checks.
+
+5. Technology Stack
+
+Category
+
+Technology
+
+Purpose
+
+Backend
+
+Python
+
+Core compliance engine
+
+Frontend
+
+Streamlit
+
+Interactive dashboard
+
+Demo Application
+
+Flask + SQLite
+
+Fictional lending application
+
+AI Integration
+
+OpenAI-compatible LLM API
+
+Optional drafting and screening
+
+Regulatory Processing
+
+difflib
+
+Regulatory redlining
+
+Code Analysis
+
+Python AST
+
+Code dependency analysis
+
+Testing
+
+pytest / unittest
+
+Automated verification
+
+Data Processing
+
+PyYAML
+
+Configuration and obligation processing
+
+Version Control
+
+Git
+
+Repository and revision tracking
+
+CI/CD
+
+GitHub Actions
+
+Automated pull-request checks
+
+6. Getting Started
+
+Prerequisites
+
+Python 3.12 or later
+
+Git
+
+pip
+
+Step 1: Clone the repository
+
+git clone https://github.com/shriyansh1411/Lexdiff.git
+cd Lexdiff
+
+Step 2: Create a virtual environment
+
+Windows PowerShell:
+
+py -3.14 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+Linux / macOS:
+
+python3 -m venv .venv
+source .venv/bin/activate
+
+Step 3: Install dependencies
+
+python -m pip install -r requirements.txt
+
+Step 4: Run the complete Lexdiff pipeline
+
+python -m lexdiff run --base demo/lendwise_base --head demo/lendwise_fixed --reg-old data/regulation/ftc_safeguards_2021-01-01.txt --reg-new data/regulation/ftc_safeguards_2026-09-01.txt --approver "Your Name"
+
+Replace Your Name with the authorized approver's name.
+
+Step 5: Launch the dashboard
+
 python -m lexdiff dashboard
-```
 
-`run` stops after stage 3 until a named human approves the obligations (`--approver`).
+Open the dashboard in your browser:
 
-## Use it on your own repository
+http://localhost:8501
 
-Add a `lexdiff_target.json` at the root of the repo (see `demo/lendwise_base/lexdiff_target.json`):
+Step 6: Run the tests
 
-| Key | Meaning |
-|-----|---------|
-| `app_factory` | `module:function` returning a Flask app |
-| `data_dir_env` | env var your app reads for its log/export/db directory (lets the canary sandbox it) |
-| `public_routes` | routes allowed without a second factor |
-| `sensitive_names` | column/variable names that hold regulated data |
-| `mfa` | decorator name, request header, `module:function` returning a valid code, denial header |
-| `notice` | `module` + `function` that decides FTC notification |
-| `canary` | synthetic values, store paths, an HTTP scenario, background jobs |
+python -m pytest -q tests
 
-The engine is framework-agnostic except the route detector and canary driver, which currently support
-Flask-style decorators (`@bp.get`, `@app.route`) and the Flask test client.
+7. Available CLI Commands
 
-## LLM configuration
+Lexdiff provides individual commands for executing and inspecting different stages.
 
-```bash
-export LEXDIFF_LLM_API_KEY=sk-...           # enables the model; unset = deterministic offline drafter
-export LEXDIFF_LLM_MODEL=gpt-4o-mini        # any chat model
-export LEXDIFF_LLM_BASE_URL=https://api.openai.com/v1   # any OpenAI-compatible server
-```
+# Run the complete pipeline
+python -m lexdiff run --base DIR --head DIR --reg-old FILE --reg-new FILE --approver "Name"
 
-A model may only draft from the verbatim clause text it is given. Every quote it returns passes the same
-verbatim validator as a human-written one, and bad output falls back to the offline drafter.
+# Compare regulatory versions
+python -m lexdiff redline --old FILE --new FILE
 
-## Demo results (computed, not hard-coded)
+# Draft obligations
+python -m lexdiff draft --old FILE --new FILE
 
-Lendwise has **11 planted violations and 2 decoys**, tagged `PLANTED:` / `DECOY:` in the source.
-Run `make benchmark`. Expected: Lexdiff finds 9 of 11 with 8 guard findings (each citing a clause) plus the
-canary's database hit, flags 0 decoys, and **reports the 2 it misses** (MD5 password hashing, hard-coded secret:
-no rule pack yet). `make demo` grades SG-5 and SG-9 **Verified**, SG-3 **Partially verified** (plaintext
-`ssn` / `account_number` remain in SQLite on purpose), SG-7 **Human review required**.
+# Validate obligation quotations
+python -m lexdiff validate compliance/drafts --regulation FILE
 
-## Limits (read before relying on it)
+# Approve an obligation
+python -m lexdiff approve SG-5 --by "Name"
 
-* The regulation files in `data/regulation/` are **abridged demo excerpts**. Fetch and check the official text
-  from eCFR before using any output; clause wording here is not a substitute for the law.
-* One seeded app, built by us. The numbers show the method works, not that it works on your codebase.
-* Only obligations that can be checked in code are covered; policies, training and vendor oversight are not.
-* Route detection and the canary currently target Flask. The graph is static analysis and will miss dynamic routing.
-* Not legal advice. A certificate states what automated checks verified and never that anyone is compliant.
+# Generate the application code graph
+python -m lexdiff graph --target DIR
 
-## Layout
+# Generate obligation tests
+python -m lexdiff gen-tests --target DIR
 
-```
-lexdiff/            engine (cli, pipeline, regulation, obligations, graph, guard, canary, proof, evidence, benchmark)
-demo/lendwise_base  non-compliant demo lender (11 planted violations, 2 decoys)
-demo/lendwise_fixed the same app after remediation
-compliance/         drafts (a rejected paraphrase), approved test-rewrite log; obligations + locked tests are generated
-data/regulation/    demo regulation excerpts (2021 and 2026 versions)
-dashboard/app.py    Streamlit view over the pipeline's outputs
-tests/              engine test-suite
-.github/workflows/  PR check
-```
+# Run synthetic canary detection
+python -m lexdiff canary --target DIR
+
+# Verify base and fixed implementations
+python -m lexdiff verify --base DIR --head DIR
+
+# Run the deterministic guard
+python -m lexdiff guard --target DIR --format text
+
+# Run the benchmark
+python -m lexdiff benchmark --target DIR
+
+# Fetch regulatory text from eCFR
+python -m lexdiff fetch-ecfr --date 2026-09-01 --out FILE
+
+# Launch the dashboard
+python -m lexdiff dashboard
+
+The run command stops after obligation extraction until a named human approves the obligations.
+
+8. Running with Make
+
+The project includes Makefile shortcuts:
+
+make test
+make demo
+make guard-base
+make benchmark
+make dashboard
+make demo-git
+
+Command
+
+Purpose
+
+make test
+
+Runs the engine test suite
+
+make demo
+
+Executes all nine stages on the demo
+
+make guard-base
+
+Runs the guard against the deliberately vulnerable application
+
+make benchmark
+
+Compares Lexdiff against keyword search
+
+make dashboard
+
+Launches the Streamlit dashboard
+
+make demo-git
+
+Runs the proof using Git-based base and head references
+
+9. Demo Application — Lendwise
+
+Lendwise is a fictional non-bank lending application designed to demonstrate regulatory change impact analysis.
+
+It contains two versions:
+
+demo/lendwise_base: Original implementation with deliberately planted violations.
+
+demo/lendwise_fixed: Remediated implementation with selected unresolved issues retained for verification.
+
+The demonstration evaluates application behavior against abridged FTC Safeguards Rule excerpts.
+
+Sample Verification Results
+
+Obligation
+
+Regulatory Clause
+
+Result
+
+SG-3
+
+314.4(c)(3)
+
+Partially verified
+
+SG-5
+
+314.4(c)(5)
+
+Verified
+
+SG-7
+
+314.4(c)(7)
+
+Human review required
+
+SG-9
+
+314.4(j)(1)
+
+Verified
+
+Benchmark Results
+
+The bundled Lendwise demo contains:
+
+11 deliberately planted violations.
+
+2 decoy markers.
+
+9 detected planted violations.
+
+0 decoy flags.
+
+2 documented missed detections.
+
+The benchmark identifies limitations such as MD5 password hashing and hard-coded secrets, for which the current rule pack does not provide detection rules.
+
+These are results from the bundled demonstration, not guaranteed performance on arbitrary applications.
+
+10. Compliance Certificate
+
+After execution, Lexdiff generates:
+
+.lexdiff/
+├── certificate.html
+└── certificate.json
+
+The certificate contains obligation-level grades and supporting verification evidence.
+
+Supported grades:
+
+Verified
+
+Partially verified
+
+Unverified
+
+Human review required
+
+Lexdiff deliberately avoids making unsupported claims of full regulatory compliance.
+
+11. Using Lexdiff on Your Own Repository
+
+Add a lexdiff_target.json file to the root of the target repository.
+
+Refer to:
+
+demo/lendwise_base/lexdiff_target.json
+
+Important configuration fields include:
+
+Key
+
+Purpose
+
+app_factory
+
+Flask application factory in module:function format
+
+data_dir_env
+
+Environment variable used to configure the application's data directory
+
+public_routes
+
+Routes permitted without a second authentication factor
+
+sensitive_names
+
+Names of variables and columns containing regulated information
+
+mfa
+
+MFA decorator, request header and verification configuration
+
+notice
+
+Module and function handling FTC notification decisions
+
+canary
+
+Synthetic values, store paths and HTTP execution scenarios
+
+The engine is designed to be framework-agnostic at its core. However, route detection and canary execution currently target Flask-style decorators and the Flask test client.
+
+12. Optional LLM Configuration
+
+Lexdiff does not require an API key.
+
+Without LEXDIFF_LLM_API_KEY, the engine uses a deterministic offline drafter.
+
+To enable optional LLM-assisted drafting and screening:
+
+export LEXDIFF_LLM_API_KEY=your_api_key
+export LEXDIFF_LLM_MODEL=gpt-4o-mini
+export LEXDIFF_LLM_BASE_URL=https://api.openai.com/v1
+
+The LLM can only draft from the regulatory clause text supplied to it.
+
+Every generated quotation is checked by the same verbatim validation mechanism used for human-written obligations. Invalid output falls back to the offline drafter.
+
+The LLM does not determine whether tests pass or whether an obligation is verified.
+
+13. Project Structure
+
+Lexdiff/
+│
+├── .github/
+│   └── workflows/
+│       └── lexdiff.yml
+│
+├── compliance/
+│   ├── drafts/
+│   └── test_changes.yaml
+│
+├── dashboard/
+│   └── app.py
+│
+├── data/
+│   └── regulation/
+│
+├── demo/
+│   ├── lendwise_base/
+│   ├── lendwise_fixed/
+│   └── lexdiff/
+│
+├── lexdiff/
+│   ├── obligations/
+│   ├── proof/
+│   ├── regulation/
+│   ├── canary/
+│   ├── pipeline.py
+│   ├── graph.py
+│   ├── screen.py
+│   ├── guard.py
+│   ├── evidence.py
+│   └── ...
+│
+├── scripts/
+├── tests/
+├── .gitignore
+├── Makefile
+├── README.md
+└── requirements.txt
+
+14. Limitations and Disclaimer
+
+The regulatory documents included in the repository are abridged demonstration excerpts, not complete authoritative legal texts.
+
+The bundled Lendwise application is fictional and uses synthetic data.
+
+The benchmark demonstrates the method on a controlled application, not universal detection accuracy.
+
+Only obligations that can be evaluated through the implemented technical checks are covered.
+
+Route detection and canary execution currently target Flask applications.
+
+Static code analysis may miss dynamically generated routes and dependencies.
+
+Organizational policies, employee training and vendor oversight require separate human assessment.
+
+Lexdiff provides technical verification evidence, not legal advice or a formal legal compliance certification.
+
+Always consult the applicable official regulatory text and qualified compliance professionals before relying on results in production.
+
+Repository
+
+GitHub: github.com/shriyansh1411/Lexdiff
+
+Lexdiff — AI-assisted regulatory intelligence with deterministic code-level verification.
